@@ -85,6 +85,10 @@ Full flow smoke test also passed: `POST /state/tracks` (create) → track_count 
 
 Init diagnostic breadcrumb file: `%TEMP%\reaclaw-diag.txt` — reaclaw writes step-by-step init progress via raw Win32 handles before anything else runs. If the plugin fails to load, this is the first place to look. A missing file means Windows blocked LoadLibrary (usually a missing dependent DLL — see the static-md note above).
 
+## Live event feed is disabled on Windows
+
+Reaclaw's csurf-based event stream (issue #111 upstream) is currently a no-op on Windows — MSVC/MinGW C++ ABI mismatch on `IReaperControlSurface` means the extension logs a WARN at load and refuses to register the surface. In practice: **any Windows agent that needs to react to human GUI edits must poll `GET /state/changes` rather than subscribe.** The AGENT_GUIDE's "stay in sync with a human editing at the same time" section still works, but via polling only. Linux/macOS builds keep the live feed.
+
 ## Toolchain (DELTABOT state)
 
 - **Visual Studio 18 BuildTools** with `Microsoft.VisualStudio.Component.VC.Tools.x86.x64` (MSVC 19.50.35730.0)
