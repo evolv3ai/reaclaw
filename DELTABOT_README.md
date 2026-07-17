@@ -85,6 +85,21 @@ Full flow smoke test also passed: `POST /state/tracks` (create) → track_count 
 
 Init diagnostic breadcrumb file: `%TEMP%\reaclaw-diag.txt` — reaclaw writes step-by-step init progress via raw Win32 handles before anything else runs. If the plugin fails to load, this is the first place to look. A missing file means Windows blocked LoadLibrary (usually a missing dependent DLL — see the static-md note above).
 
+## Installing the agent skill on Windows
+
+`scripts/install-agent-skill.sh` calls `ln -sfn` to link `.claude/skills/reaper` into `~/.claude/skills/`. On Git Bash without developer mode, `ln -s` silently falls back to a hard copy — the "install" appears to succeed, but later `LEARNED.md` edits in the repo don't reach agent sessions and new files in the repo skill dir (like `LOCAL.md`) aren't visible. Replace the copy with a directory junction (no admin required, works across drives):
+
+```powershell
+$dest = "$env:USERPROFILE\.claude\skills\reaper"
+$src  = "D:\reaclaw\.claude\skills\reaper"
+if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+cmd /c mklink /J $dest $src
+```
+
+Verify with `Get-Item $dest | Select-Object LinkType, Target` — expect `Junction` and the source path.
+
+The skill also needs a `python3` on PATH and a `REACLAW_CONFIG` override pointing at the Windows config path. See `.claude/skills/reaper/LOCAL.md` (gitignored, device-specific) for the shim details and one-time setup on DELTABOT.
+
 ## Live event feed is disabled on Windows
 
 Reaclaw's csurf-based event stream (issue #111 upstream) is currently a no-op on Windows — MSVC/MinGW C++ ABI mismatch on `IReaperControlSurface` means the extension logs a WARN at load and refuses to register the surface. In practice: **any Windows agent that needs to react to human GUI edits must poll `GET /state/changes` rather than subscribe.** The AGENT_GUIDE's "stay in sync with a human editing at the same time" section still works, but via polling only. Linux/macOS builds keep the live feed.
